@@ -17,63 +17,59 @@ export default function InputDestination({ onResponse }) {
 
         if (directionsData.routes.length > 0) {
             const route = directionsData.routes[0].legs[0];
+
+            // Extract overall travel details
             const result = {
                 distance: route.distance.text,
                 duration: route.duration.text,
+                startAddress: route.start_address,
+                endAddress: route.end_address,
             };
-            setDistance(result.distance);
-            setDuration(result.duration);
 
-            // Get waypoints for gas station search
-            const waypoints = directionsData.routes[0].overview_polyline.points;
-
-            // Call Places API to find gas stations along waypoints
-            const gasStations = await fetchGasStations(waypoints);
+            // Extract countries traversed along the entire route
+            const countries = await extractCountriesFromSteps(directionsData.routes[0].legs);
 
             // Pass all data to parent
-            onResponse({ ...result, gasStations });
+            onResponse({ ...result, countries });
         } else {
             alert('No route found. Check the inputs.');
         }
     };
 
-    const fetchGasStations = async (waypoints) => {
-        const API_KEY = process.env.REACT_APP_GOOGLE_API_KEY; // Load from .env
-        const radius = 5000; // Search within 5km of each waypoint
-        const gasStations = [];
+// Extract countries from the detailed steps
+    const extractCountriesFromSteps = async (legs) => {
+        const countries = new Set();
 
-        for (const point of waypoints) {
-            const { lat, lng } = point;
-            const placesResponse = await fetch(
-                `https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=gas_station&key=${API_KEY}`
-            );
-
-            const placesData = await placesResponse.json();
-            if (placesData.results.length > 0) {
-                gasStations.push(
-                    ...placesData.results.map((station) => ({
-                        name: station.name,
-                        address: station.vicinity,
-                        location: station.geometry.location,
-                    }))
-                );
+        for (const leg of legs) {
+            for (const step of leg.steps) {
+                // Use the step's location to reverse geocode the country
+                const { lat, lng } = step.end_location;
+                const country = await reverseGeocodeCountry(lat, lng);
+                if (country) countries.add(country);
             }
         }
 
-        // Remove duplicates by station name and location
-        const uniqueGasStations = gasStations.filter(
-            (station, index, self) =>
-                index ===
-                self.findIndex(
-                    (s) =>
-                        s.name === station.name &&
-                        s.location.lat === station.location.lat &&
-                        s.location.lng === station.location.lng
-                )
+        return Array.from(countries); // Convert Set to Array
+    };
+
+// Use Google's Geocoding API to get the country for a given lat/lng
+    const reverseGeocodeCountry = async (lat, lng) => {
+        const API_KEY = process.env.REACT_APP_GOOGLE_API_KEY;
+        const geocodeResponse = await fetch(
+            `https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${API_KEY}`
         );
 
-        return uniqueGasStations;
+        const geocodeData = await geocodeResponse.json();
+
+        // Extract the country from the geocoding result
+        const countryComponent = geocodeData.results.find((result) =>
+            result.types.includes("country")
+        );
+
+        return countryComponent ? countryComponent.formatted_address : null;
     };
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         await fetchRoute();
