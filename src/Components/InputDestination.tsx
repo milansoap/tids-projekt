@@ -11,12 +11,25 @@ export default function InputDestination() {
     const [tollCost, setTollCost] = useState(0);
     const [totalTripCost, setTotalTripCost] = useState(0);
     const [fuelExpense ,setFuelExpense] = useState(0)
+    const [showPopup, setShowPopup] = useState(false); // New state for popup visibility
 
     const [loadingTollCost, setLoadingTollCost] = useState(false);
     const [loadingTotalTripCost, setLoadingTotalTripCost] = useState(false);
 
+    const popupStyles: React.CSSProperties = {
+        position: "fixed", // Fixed position with valid literal
+        bottom: "20px",
+        fontSize: "24px",
+        right: "20px",
+        padding: "5px 30px",
+        backgroundColor: "#4CAF50",
+        color: "white",
+        borderRadius: "10px",
+        boxShadow: "0px 4px 8px rgba(0,0,0,0.2)",
+        zIndex: 1000,
+    };
 
-    const [weatherOnArrival, setWeatherOnArrival] = useState("Loading ..")
+    const [weatherOnArrival, setWeatherOnArrival] = useState("Unknown (Press button to fetch weather)")
     // UseEffect to handle changes in routeData
     useEffect(() => {
         console.log('ALOO')
@@ -394,6 +407,8 @@ export default function InputDestination() {
                                         console.log("Weather Info:", weatherInfo);
 
                                         setWeatherOnArrival(weatherInfo);
+                                        setShowPopup(true);
+                                        setTimeout(() => setShowPopup(false), 2000); // Hide after 2 seconds
 
                                         console.log("Weather State After:", weatherOnArrival);
 
@@ -402,6 +417,38 @@ export default function InputDestination() {
                                         console.error("Error parsing JSON:", error);
                                     }
                                 });
+
+                                // Function to fetch weather
+                                const fetchWeather = async () => {
+                                    try {
+                                        const response = await fetch(`http://localhost:8083/fetch-city-weather/${encodeURIComponent(destinationCity)}`);
+                                        if (!response.ok) throw new Error(`Failed to fetch weather: ${response.statusText}`);
+
+                                        const weatherData = await response.json();
+                                        console.log("Weather Data Fetched:", weatherData);
+
+                                        const updatedWeatherInfo = `Temperature: ${weatherData.main?.temp}°C, 
+                                        Feels like: ${weatherData.main?.feels_like}°C,
+                                        Description: ${weatherData.weather?.[0]?.description || "N/A"},
+                                        Humidity: ${weatherData.main?.humidity}%`;
+
+                                        setWeatherOnArrival(updatedWeatherInfo);
+                                    } catch (error) {
+                                        console.error("Error fetching weather:", error);
+                                    }
+                                };
+
+                                // Call fetchWeather immediately
+                                fetchWeather();
+
+                                // Start the interval for repeated fetching
+                                const fetchWeatherInterval = setInterval(fetchWeather, 10000); // 10 seconds interval
+
+                                // Clean up on unmount
+                                return () => {
+                                    clearInterval(fetchWeatherInterval);
+                                    eventSource.close();
+                                };
 
 
                             }}
@@ -422,8 +469,19 @@ export default function InputDestination() {
                 )}
 
 
+                {/* Popup Component */}
+                {showPopup && (
+                    <div style={popupStyles}>
+                        <p>Weather Updated</p>
+                    </div>
+                )}
+
+
             </header>
         </div>
     )
 
+
+
 }
+
