@@ -5,13 +5,13 @@ export default function InputDestination() {
     const [start, setStart] = useState('Madrid');
     const [end, setEnd] = useState('Rome');
     const [consumption, setConsumption] = useState(7);
-    const [isLoading, setIsLoading] = useState(false); // Spinner state
-    const [routeData, setRouteData] = useState(null); // Data to display
+    const [isLoading, setIsLoading] = useState(false);
+    const [routeData, setRouteData] = useState(null);
     const [destinationCity ,setDestinationCity] = useState("");
     const [tollCost, setTollCost] = useState(0);
     const [totalTripCost, setTotalTripCost] = useState(0);
     const [fuelExpense ,setFuelExpense] = useState(0)
-    const [showPopup, setShowPopup] = useState(false); // New state for popup visibility
+    const [showPopup, setShowPopup] = useState(false);
 
     const [loadingTollCost, setLoadingTollCost] = useState(false);
     const [loadingTotalTripCost, setLoadingTotalTripCost] = useState(false);
@@ -69,13 +69,11 @@ export default function InputDestination() {
                 endAddress: route.end_address,
             };
 
-            // Extract countries traversed along the entire route
             const countries: string[] = await extractCountriesFromSteps(directionsData.routes[0].legs);
             const countriesString: string = countries.join(' '); // Join countries with spaces
             const startingCountry: string = countries[0];
 
             const totalFuelCost = await calculateFuelForTrip(startingCountry, consumption, route.distance.value / 1000);
-// const tollCost = calculateTollForTrip(startingCountry, );
             calculateTollForTrip(formatAddress(result.startAddress), formatAddress(result.endAddress));
             setDestinationCity(formatAddress(result.endAddress))
 
@@ -468,14 +466,11 @@ export default function InputDestination() {
 
                 )}
 
-
-                {/* Popup Component */}
                 {showPopup && (
                     <div style={popupStyles}>
                         <p>Weather Updated</p>
                     </div>
                 )}
-
 
             </header>
         </div>
